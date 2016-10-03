@@ -9,6 +9,9 @@ import "fmt"
 // and returns a pointer to a parsed pattern which is the entry point to the
 // rest of the data.
 func DecodeFile(path string) (*Pattern, error) {
+
+	var diff int
+
 	p := &Pattern{}
 
 	dat, err := ioutil.ReadFile(path)
@@ -26,6 +29,8 @@ func DecodeFile(path string) (*Pattern, error) {
 		panic("Failed to read binary data: " + err.Error())
 	}
 
+	diff = buf.Len() - int(p.len)
+
 	if err := binary.Read(buf, binary.LittleEndian, &p.hw_version); err != nil {
 		panic("Failed to read binary data: " + err.Error())
 	}
@@ -34,12 +39,7 @@ func DecodeFile(path string) (*Pattern, error) {
 		panic("Failed to read binary data: " + err.Error())
 	}
 
-	fmt.Printf("%s\n", string(p.magic[:]))
-	fmt.Printf("%d\n", p.len)
-	fmt.Printf("%s\n", string(p.hw_version[:]))
-	fmt.Printf("%f\n", p.tempo)
-
-	for buf.Len() > 0 {
+	for buf.Len() > diff {
 		t := &Track{}
 
 		if err := binary.Read(buf, binary.LittleEndian, &t.index); err != nil {
@@ -60,40 +60,57 @@ func DecodeFile(path string) (*Pattern, error) {
 			panic("Failed to read binary data: " + err.Error())
 		}
 
-		fmt.Print(t)
+		p.track = append(p.track, t)
 	}
 
 	return p, nil
 }
 
 func (t *Track) String() string {
-	return fmt.Sprintf("(%d) %s \t%s\n", t.index, t.name, t.drums.String())
+
+	return fmt.Sprintf("(%d) %s\t%s\n",
+		t.index,
+		t.name,
+		t.drums.String())
 }
 
-func (t *Pattern) String() string {
-	return fmt.Sprintf("%s\n", "huita")
+func (p *Pattern) String() string {
+
+	var b bytes.Buffer
+
+	n := bytes.IndexByte(p.hw_version[:], 0)
+	fmt.Fprintf(&b, "Saved with HW Version: %s\n", string(p.hw_version[:n]))
+	fmt.Fprintf(&b, "Tempo: %g\n", p.tempo)
+
+	for _, v := range p.track {
+		fmt.Fprintf(&b, "%s", v.String())
+	}
+
+	return b.String()
 }
 
 func (d *Drums) String() string {
 
-	out := make([]byte, 21)
+	var b [21]byte
+	var offset int
 
 	for i, v := range d.d {
 
 		if i%4 == 0 {
-			out = append(out, '|')
+			b[i+offset] = '|'
+			offset++
 		}
 
 		if v != 0 {
-			out = append(out, 'x')
+			b[i+offset] = 'x'
 		} else {
-			out = append(out, '-')
+			b[i+offset] = '-'
 		}
 	}
 
-	out = append(out, '|')
+	b[20] = '|'
 
-	return string(out)
+	return fmt.Sprintf("%s", b)
 }
 
 // Pattern is the high level representation of the
@@ -103,7 +120,7 @@ type Pattern struct {
 	len        uint64
 	hw_version [32]byte
 	tempo      float32
-	track      []Track
+	track      []*Track
 }
 
 type Track struct {
