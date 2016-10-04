@@ -31,7 +31,7 @@ func DecodeFile(path string) (*Pattern, error) {
 
 	diff = buf.Len() - int(p.len)
 
-	if err := binary.Read(buf, binary.LittleEndian, &p.hw_version); err != nil {
+	if err := binary.Read(buf, binary.LittleEndian, &p.hwVersion); err != nil {
 		panic("Failed to read binary data: " + err.Error())
 	}
 
@@ -46,11 +46,11 @@ func DecodeFile(path string) (*Pattern, error) {
 			panic("Failed to read binary data: " + err.Error())
 		}
 
-		if err := binary.Read(buf, binary.LittleEndian, &t.name_len); err != nil {
+		if err := binary.Read(buf, binary.LittleEndian, &t.nameLen); err != nil {
 			panic("Failed to read binary data: " + err.Error())
 		}
 
-		t.name = make([]byte, t.name_len)
+		t.name = make([]byte, t.nameLen)
 
 		if err := binary.Read(buf, binary.LittleEndian, &t.name); err != nil {
 			panic("Failed to read binary data: " + err.Error())
@@ -78,8 +78,8 @@ func (p *Pattern) String() string {
 
 	var b bytes.Buffer
 
-	n := bytes.IndexByte(p.hw_version[:], 0)
-	fmt.Fprintf(&b, "Saved with HW Version: %s\n", string(p.hw_version[:n]))
+	n := bytes.IndexByte(p.hwVersion[:], 0)
+	fmt.Fprintf(&b, "Saved with HW Version: %s\n", string(p.hwVersion[:n]))
 	fmt.Fprintf(&b, "Tempo: %g\n", p.tempo)
 
 	for _, v := range p.track {
@@ -116,20 +116,22 @@ func (d *Drums) String() string {
 // Pattern is the high level representation of the
 // drum pattern contained in a .splice file.
 type Pattern struct {
-	magic      [6]byte
-	len        uint64
-	hw_version [32]byte
-	tempo      float32
-	track      []*Track
+	magic     [6]byte
+	len       uint64
+	hwVersion [32]byte
+	tempo     float32
+	track     []*Track
 }
 
+// Track is contains information about single track
 type Track struct {
-	index    uint32
-	name_len uint8
-	name     []byte
-	drums    Drums
+	index   uint32
+	nameLen uint8
+	name    []byte
+	drums   Drums
 }
 
+// Drums is helper struct to print drum pattern
 type Drums struct {
 	d [16]byte
 }
